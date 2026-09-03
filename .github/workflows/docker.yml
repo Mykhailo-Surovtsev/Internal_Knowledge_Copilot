@@ -1,0 +1,19 @@
+name: Build Docker image
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build --tag internal-knowledge-copilot:ci .
