@@ -73,3 +73,19 @@ def semantic_search(query: str, limit: int = 3) -> list[dict]:
         }
         for point in results
     ]
+def get_index_status() -> dict[str, bool | int]:
+    client = get_client()
+
+    if not client.collection_exists(COLLECTION_NAME):
+        return {
+            "ready": False,
+            "indexed_chunks": 0,
+        }
+
+    collection = client.get_collection(COLLECTION_NAME)
+    indexed_chunks = collection.points_count or 0
+
+    return {
+        "ready": indexed_chunks > 0,
+        "indexed_chunks": indexed_chunks,
+    }

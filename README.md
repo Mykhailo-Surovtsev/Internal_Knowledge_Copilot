@@ -106,7 +106,7 @@ python -m uvicorn app.main:app --reload --port 8001
 | POST | `/index` | Generate embeddings and rebuild the Qdrant index |
 | POST | `/search` | Return semantically relevant chunks |
 | POST | `/ask` | Return a grounded LLM answer with sources |
-
+| GET | `/ready` | Readiness check: vector index exists and contains chunks |
 Example request:
 
 ```json
