@@ -1,17 +1,21 @@
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, RunContext
 
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 
 class RAGAnswer(BaseModel):
-    answer: str = Field(description="Answer based only on the retrieved context")
+    answer: str = Field(
+        description="Answer based only on the retrieved context"
+    )
     sources: list[str] = Field(
         description="Exact source filenames used for the answer"
     )
@@ -37,39 +41,50 @@ Rules:
 - In sources, use only exact filenames shown in the reference material.
 """
 
-agent = Agent(
-    "groq:qwen/qwen3.8-27b",
-    output_type=RAGAnswer,
-    deps_type=AnswerDeps,
-    retries={"output": 1},
-    instructions=SYSTEM_INSTRUCTIONS,
-)
 
+@lru_cache
+def get_agent():
+    if not os.getenv("GROQ_API_KEY"):
+        raise RuntimeError(
+            "GROQ_API_KEY is not configured. Add it to the .env file."
+        )
 
-@agent.output_validator
-def validate_answer(
-    context: RunContext[AnswerDeps],
-    output: RAGAnswer,
-) -> RAGAnswer:
-    if not output.grounded:
-        if output.sources:
+    agent = Agent(
+        "groq:qwen/qwen3.8-27b",
+        output_type=RAGAnswer,
+        deps_type=AnswerDeps,
+        retries={"output": 1},
+        instructions=SYSTEM_INSTRUCTIONS,
+    )
+
+    @agent.output_validator
+    def validate_answer(
+        context: RunContext[AnswerDeps],
+        output: RAGAnswer,
+    ) -> RAGAnswer:
+        if not output.grounded:
+            if output.sources:
+                raise ModelRetry(
+                    "When grounded is false, sources must be an empty list."
+                )
+            return output
+
+        if not output.sources:
             raise ModelRetry(
-                "When grounded is false, sources must be an empty list."
+                "A grounded answer must contain at least one source."
             )
+
+        invalid_sources = (
+            set(output.sources) - context.deps.allowed_sources
+        )
+        if invalid_sources:
+            raise ModelRetry(
+                f"Unknown source names: {', '.join(sorted(invalid_sources))}."
+            )
+
         return output
 
-    if not output.sources:
-        raise ModelRetry(
-            "A grounded answer must contain at least one source."
-        )
-
-    invalid_sources = set(output.sources) - context.deps.allowed_sources
-    if invalid_sources:
-        raise ModelRetry(
-            f"Unknown source names: {', '.join(sorted(invalid_sources))}."
-        )
-
-    return output
+    return agent
 
 
 def build_context(matches: list[dict]) -> str:
@@ -79,10 +94,10 @@ def build_context(matches: list[dict]) -> str:
     )
 
 
-def answer_question(question: str, matches: list[dict]) -> RAGAnswer:
-    if not os.getenv("GROQ_API_KEY"):
-        raise RuntimeError("GROQ_API_KEY is not configured.")
-
+def answer_question(
+    question: str,
+    matches: list[dict],
+) -> RAGAnswer:
     context = build_context(matches)
 
     prompt = f"""
@@ -93,10 +108,12 @@ REFERENCE MATERIAL:
 {context}
 """
 
+    agent = get_agent()
     result = agent.run_sync(
         prompt,
         deps=AnswerDeps(
             allowed_sources={match["source"] for match in matches}
         ),
     )
+
     return result.output
