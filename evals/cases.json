@@ -1,0 +1,26 @@
+[
+  {
+    "id": "remote_hours",
+    "query": "What are the core hours for remote employees?",
+    "expected_grounded": true,
+    "expected_source": "remote_work.md"
+  },
+  {
+    "id": "leave_notice",
+    "query": "How far in advance should planned leave be announced?",
+    "expected_grounded": true,
+    "expected_source": "remote_work.md"
+  },
+  {
+    "id": "incident_postmortem",
+    "query": "What happens after a production incident is resolved?",
+    "expected_grounded": true,
+    "expected_source": "incident_response.md"
+  },
+  {
+    "id": "parental_leave",
+    "query": "How many days of parental leave does the company offer?",
+    "expected_grounded": false,
+    "expected_source": null
+  }
+]

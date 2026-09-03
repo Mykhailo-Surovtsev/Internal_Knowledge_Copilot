@@ -2,3 +2,7 @@ fastapi
 uvicorn[standard]
 pydantic
 qdrant-client
+fastembed
+pydantic-ai-slim[groq]
+python-dotenv
+pytest
