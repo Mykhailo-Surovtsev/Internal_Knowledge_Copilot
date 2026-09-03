@@ -89,3 +89,10 @@ def get_index_status() -> dict[str, bool | int]:
         "ready": indexed_chunks > 0,
         "indexed_chunks": indexed_chunks,
     }
+def close_client() -> None:
+    if get_client.cache_info().currsize == 0:
+        return
+
+    client = get_client()
+    client.close()
+    get_client.cache_clear()
