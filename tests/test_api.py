@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from app import main
 from app.main import app
+from pydantic_ai.exceptions import ModelHTTPError
 
 client = TestClient(app)
 
@@ -54,3 +55,40 @@ def test_ready_returns_200_with_index(monkeypatch):
         "ready": True,
         "indexed_chunks": 4,
     }
+def test_ask_returns_502_when_llm_provider_fails(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "semantic_search",
+        lambda query: [
+            {
+                "source": "remote_work.md",
+                "text": "Core hours are 11:00 to 16:00 Kyiv time.",
+                "score": 0.9,
+            }
+        ],
+    )
+
+    def raise_provider_error(question, matches):
+        raise ModelHTTPError(
+            status_code=503,
+            model_name="test-model",
+            body={},
+        )
+
+    monkeypatch.setattr(
+        main,
+        "answer_question",
+        raise_provider_error,
+    )
+
+    response = client.post(
+        "/ask",
+        json={
+            "query": "What are the core hours?",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == (
+        "LLM provider failed to process the request. Try again later."
+    )
