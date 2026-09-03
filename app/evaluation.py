@@ -1,7 +1,6 @@
 import json
 import sys
 from pathlib import Path
-
 from app.answering import answer_question
 from app.vector_store import (
     close_client,
@@ -9,10 +8,8 @@ from app.vector_store import (
     semantic_search,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CASES_FILE = PROJECT_ROOT / "evals" / "cases.json"
-
 
 def run_evaluation() -> None:
     try:
@@ -57,7 +54,6 @@ def run_evaluation() -> None:
             sys.exit(1)
     finally:
         close_client()
-
 
 if __name__ == "__main__":
     run_evaluation()
