@@ -1,9 +1,8 @@
 import time
 from uuid import uuid4
-
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
-
+from pydantic_ai.exceptions import ModelHTTPError
 from app.answering import RAGAnswer, answer_question
 from app.chunking import Chunk, load_chunks
 from app.observability import get_logger
@@ -95,6 +94,17 @@ def ask(request: SearchRequest) -> RAGAnswer:
     try:
         matches = semantic_search(request.query)
         return answer_question(request.query, matches)
+    except ModelHTTPError as error:
+        logger.warning(
+            "llm_provider_error",
+            extra={
+                "provider_status_code": error.status_code,
+            },
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="LLM provider failed to process the request. Try again later.",
+        ) from error
     except RuntimeError as error:
         raise HTTPException(
             status_code=409,

@@ -18,6 +18,7 @@ class JsonFormatter(logging.Formatter):
             "method",
             "path",
             "status_code",
+            "provider_status_code",
             "duration_ms",
         ):
             value = getattr(record, field, None)
