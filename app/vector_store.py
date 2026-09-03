@@ -1,21 +1,16 @@
 from functools import lru_cache
 from pathlib import Path
-
 from qdrant_client import QdrantClient, models
-
 from app.chunking import Chunk, load_chunks
 
 COLLECTION_NAME = "knowledge_chunks"
 EMBEDDING_MODEL = "BAAI/bge-small-en"
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 QDRANT_STORAGE = PROJECT_ROOT / "storage" / "qdrant"
-
 
 @lru_cache
 def get_client() -> QdrantClient:
     return QdrantClient(path=str(QDRANT_STORAGE))
-
 
 def index_documents() -> int:
     client = get_client()
@@ -50,7 +45,6 @@ def index_documents() -> int:
     )
 
     return len(chunks)
-
 
 def semantic_search(query: str, limit: int = 3) -> list[dict]:
     client = get_client()
