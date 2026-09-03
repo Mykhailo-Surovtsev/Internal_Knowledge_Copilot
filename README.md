@@ -137,6 +137,7 @@ Each request produces a structured JSON log containing:
 - request latency in milliseconds
 
 The same identifier is returned to the client in the `X-Request-ID` response header. This makes it easier to correlate a client request with a server log entry.
+The Docker image also uses a liveness `HEALTHCHECK` against `/health`.
 
 ## Testing and Evaluation
 
