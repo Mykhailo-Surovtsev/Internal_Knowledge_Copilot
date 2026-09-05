@@ -18,6 +18,12 @@
     "expected_source": "incident_response.md"
   },
   {
+    "id": "support_escalation",
+    "query": "When should a support ticket be escalated to the urgent queue?",
+    "expected_grounded": true,
+    "expected_source": "support_escalation.md"
+  },
+  {
     "id": "parental_leave",
     "query": "How many days of parental leave does the company offer?",
     "expected_grounded": false,

@@ -1,175 +1,157 @@
-# Internal Knowledge Copilot
+# Support Knowledge Copilot
 
-A grounded Retrieval-Augmented Generation (RAG) API for answering internal company-policy questions from Markdown documents.
+A grounded internal-knowledge API for Support Operations. It retrieves relevant policy and escalation-playbook fragments from Markdown files, then uses an LLM to formulate an answer with cited source filenames.
 
-The service retrieves relevant document chunks from a local Qdrant vector store and uses an LLM only to formulate an answer based on that retrieved context.
+This is deliberately an internal tool, not a customer-facing chatbot. It demonstrates a practical AI workflow for helping support teams find approved information without treating a model response as a source of truth.
 
-## Features
+## What it demonstrates
 
-- Markdown document ingestion and word-based chunking with overlap
-- Semantic search with FastEmbed and Qdrant
-- Grounded RAG answers powered by PydanticAI and Groq
-- Source validation: the model can cite only retrieved filenames
-- Clear fallback for questions not covered by the knowledge base
-- FastAPI and interactive OpenAPI documentation
-- Structured JSON request logs with correlation IDs and latency
-- Unit tests with pytest
-- End-to-end RAG evaluation cases
-- Docker containerization with persistent local vector storage
-- GitHub Actions CI for tests and Docker image builds
+- Python, FastAPI, and documented HTTP APIs;
+- RAG: document chunking, embeddings, vector search, and grounded answers;
+- structured LLM output with source validation;
+- safe fallbacks when no context is available or an LLM provider is unavailable;
+- an internal API key for sensitive endpoints;
+- structured request logs, request IDs, readiness checks, tests, and evaluation cases;
+- Docker packaging with persistent local Qdrant storage.
 
 ## Architecture
 
-```mermaid
+~~~mermaid
 flowchart LR
-    A[Markdown documents] --> B[Chunking with overlap]
-    B --> C[FastEmbed embeddings]
-    C --> D[Qdrant vector store]
+    Docs[Support policies and playbooks] --> Chunk[Chunk Markdown]
+    Chunk --> Embed[FastEmbed embeddings]
+    Embed --> Store[(Qdrant local index)]
 
-    U[User question] --> E[FastAPI]
-    E --> F[Semantic search]
-    D --> F
-    F --> G[Retrieved context]
-    G --> H[PydanticAI + Groq]
-    H --> I[Grounded answer + sources]
-```
+    Agent[Support agent or internal tool] --> API[FastAPI]
+    API --> Search[Semantic search]
+    Store --> Search
+    Search --> Context[Retrieved context]
+    Context --> LLM[Groq structured-output model]
+    LLM --> Answer[Answer, sources, grounded flag]
+~~~
 
-## Tech Stack
+## Key design decisions
 
-- Python 3.14
-- FastAPI and Pydantic
-- Qdrant local mode
-- FastEmbed with `BAAI/bge-small-en`
-- PydanticAI
-- Groq API with `qwen/qwen3.8-27b`
-- pytest
-- Docker and GitHub Actions
+| Decision | Why it matters |
+| --- | --- |
+| The model sees only retrieved chunks | It is instructed to answer from the knowledge base, not from assumed company policy. |
+| Source filenames are validated | The model cannot cite a file that was not retrieved. |
+| Empty context returns a deterministic fallback | The service does not call an LLM when retrieval produced no context. |
+| `POST /index` is protected when a key is configured | A user who can reach the API should not be able to rebuild the knowledge base accidentally. |
+| Health and readiness are separate | The process can be alive while the vector index is absent or unavailable. |
+| Qdrant closes during application shutdown | The embedded store does not rely on interpreter cleanup. |
 
-## Quick Start with Docker
+The included documents are fictional examples: an incident-response guide, a support-escalation playbook, and an internal work-policy document. Do not index production information until access, retention, and privacy requirements are defined.
 
-### 1. Clone the repository
+## Quick start
 
-```powershell
-git clone https://github.com/Mykhailo-Surovtsev/Internal_Knowledge_Copilot.git
-cd Internal_Knowledge_Copilot
-```
+### 1. Configure local secrets
 
-### 2. Configure the API key
+Copy the template, then add a Groq key only to the ignored `.env` file:
 
-Create a `.env` file in the project root:
+~~~powershell
+Copy-Item .env.example .env
+~~~
 
-```text
-GROQ_API_KEY=your_groq_api_key_here
-```
+~~~text
+GROQ_API_KEY=your_groq_key
+# Optional: this model is the default when GROQ_MODEL is omitted.
+GROQ_MODEL=qwen/qwen3.8-27b
+# Optional for a local demo. Set a long random value before exposing the API.
+API_SHARED_SECRET=
+~~~
 
-Never commit `.env`. Use `.env.example` only as a template.
+`GROQ_API_KEY` is needed only for `POST /ask`. Indexing and semantic search work locally without it.
 
-### 3. Build the image
+### 2. Run locally
 
-```powershell
-docker build --tag internal-knowledge-copilot:0.3.0 .
-```
-
-### 4. Run the container
-
-```powershell
-New-Item -ItemType Directory -Force storage
-
-$projectPath = (Get-Location).Path
-
-docker run --rm --name internal-knowledge-copilot --env-file .env --publish 127.0.0.1:8001:8001 --mount "type=bind,source=$projectPath\storage,target=/app/storage" internal-knowledge-copilot:0.3.0
-```
-
-Open the interactive API documentation:
-
-```text
-http://127.0.0.1:8001/docs
-```
-
-Call `POST /index` once to create the vector index, then use `POST /ask`.
-
-## Local Development
-
-```powershell
+~~~powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8001
-```
+~~~
 
-## API Endpoints
+Open [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs). Call `POST /index` once after startup or after changing a Markdown document.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/health` | Liveness check |
-| GET | `/chunks` | Show chunks created from Markdown documents |
-| POST | `/index` | Generate embeddings and rebuild the Qdrant index |
-| POST | `/search` | Return semantically relevant chunks |
-| POST | `/ask` | Return a grounded LLM answer with sources |
-| GET | `/ready` | Readiness check: vector index exists and contains chunks |
-Example request:
+### 3. Run with Docker
 
-```json
+~~~powershell
+docker build --tag support-knowledge-copilot:1.0.0 .
+
+New-Item -ItemType Directory -Force storage
+$projectPath = (Get-Location).Path
+
+docker run --rm --name support-knowledge-copilot --env-file .env --publish 127.0.0.1:8001:8001 --mount "type=bind,source=$projectPath\storage,target=/app/storage" support-knowledge-copilot:1.0.0
+~~~
+
+The port binds only to `127.0.0.1`. Do not expose it on a network until `API_SHARED_SECRET`, HTTPS, access control, and rate limits are configured.
+
+## API
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Process liveness check |
+| `GET` | `/ready` | Vector-index readiness check |
+| `GET` | `/chunks` | Inspect indexed document chunks |
+| `POST` | `/index` | Rebuild the local vector index |
+| `POST` | `/search` | Return retrieved chunks and relevance scores |
+| `POST` | `/ask` | Return a grounded answer with source filenames |
+
+If `API_SHARED_SECRET` is set, `/chunks`, `/index`, `/search`, and `/ask` require this header:
+
+~~~text
+X-Internal-Api-Key: your_shared_secret
+~~~
+
+Example `POST /ask` body:
+
+~~~json
 {
-  "query": "What are the core hours for remote employees?"
+  "query": "When should a support ticket be escalated to the urgent queue?"
 }
-```
+~~~
 
 Example response:
 
-```json
+~~~json
 {
-  "answer": "The core collaboration hours for remote employees are from 11:00 to 16:00 Kyiv time.",
-  "sources": ["remote_work.md"],
+  "answer": "Escalate when a customer cannot access a core function, reports a security or privacy issue, or reports a duplicate payment or suspected fraud.",
+  "sources": ["support_escalation.md"],
   "grounded": true
 }
-```
+~~~
 
-For a question that is not supported by the documents, the API returns `grounded: false` and an empty source list.
+For a question without support in the retrieved context, the API returns `grounded: false` and an empty source list. A missing index returns `409`; a missing model key returns `503`; an upstream model failure returns `502`.
 
-## Observability
+## Observability and evaluation
 
-Each request produces a structured JSON log containing:
-
-- `request_id`
-- HTTP method and path
-- response status code
-- request latency in milliseconds
-
-The same identifier is returned to the client in the `X-Request-ID` response header. This makes it easier to correlate a client request with a server log entry.
-The Docker image also uses a liveness `HEALTHCHECK` against `/health`.
-
-## Testing and Evaluation
+Each request produces a JSON log with a request ID, method, path, response status, and latency. The same ID is returned in `X-Request-ID`. Invalid request-ID headers are replaced with a generated UUID before logging.
 
 Run unit tests:
 
-```powershell
+~~~powershell
 python -m pytest -q
-```
+~~~
 
-Run RAG evaluation cases:
+Run the end-to-end evaluation only after configuring Groq:
 
-```powershell
+~~~powershell
 python -m app.evaluation
-```
+~~~
 
-Evaluation checks both supported questions and an unsupported question to verify that the assistant does not invent policy information.
+The evaluation covers supported policy questions, an unsupported parental-leave question, and a prompt-injection attempt. It checks the `grounded` flag and expected sources; it is not a measure of production answer quality.
 
-## CI
+## Interview summary
 
-GitHub Actions runs automatically on pushes and pull requests:
+The problem is that support agents lose time searching scattered policies and may give customers inconsistent answers.
 
-1. Unit tests with pytest
-2. Docker image build verification
+This project centralizes approved Markdown knowledge, retrieves a small relevant context, and asks the LLM for structured output. It separates deterministic operational behavior from probabilistic AI behavior: no context means a safe fallback; invalid sources are rejected; a provider outage returns a clear `502` instead of pretending an answer exists.
 
-## Limitations and Next Steps
+## Limitations and next steps
 
-- The knowledge base currently contains a small set of demo documents.
-- Index rebuilding is manual after source documents change.
-- Qdrant runs in local embedded mode and is suitable for development rather than multi-instance production deployment.
-- The API has no authentication, authorization, or rate limiting yet.
-- LLM availability and response quality depend on the external Groq provider.
-
-## Skills Demonstrated
-
-RAG, embeddings, vector databases, LLM prompting, context management, PydanticAI, FastAPI, API design, testing, evaluation, Docker, GitHub Actions CI, structured logging, and observability.
+- Qdrant local mode is appropriate for a single local instance, not multiple API replicas.
+- Re-indexing is a manual, synchronous operation; a production system should use background jobs, document versioning, and a safe index-swap strategy.
+- Grounding reduces hallucinations but does not replace human review for high-impact decisions.
+- Production deployment needs identity-based access control, audit trails, rate limits, and a managed vector database.
+- Evaluate on anonymized, human-reviewed support conversations before using it to automate customer-facing replies.

@@ -2,14 +2,20 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, RunContext
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
+DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b"
+NO_ANSWER_MESSAGE = (
+    "I don't have enough information in the indexed knowledge base to answer that."
+)
+
+
+class ProviderConfigurationError(RuntimeError):
+    """Raised when the answer provider has not been configured."""
 
 
 class RAGAnswer(BaseModel):
@@ -23,11 +29,9 @@ class RAGAnswer(BaseModel):
         description="True only if the answer is supported by the context"
     )
 
-
 @dataclass
 class AnswerDeps:
     allowed_sources: set[str]
-
 
 SYSTEM_INSTRUCTIONS = """
 You are an internal knowledge assistant.
@@ -41,16 +45,15 @@ Rules:
 - In sources, use only exact filenames shown in the reference material.
 """
 
-
 @lru_cache
 def get_agent():
     if not os.getenv("GROQ_API_KEY"):
-        raise RuntimeError(
+        raise ProviderConfigurationError(
             "GROQ_API_KEY is not configured. Add it to the .env file."
         )
 
     agent = Agent(
-        "groq:qwen/qwen3.8-27b",
+        f"groq:{os.getenv('GROQ_MODEL', DEFAULT_GROQ_MODEL)}",
         output_type=RAGAnswer,
         deps_type=AnswerDeps,
         retries={"output": 1},
@@ -86,18 +89,23 @@ def get_agent():
 
     return agent
 
-
 def build_context(matches: list[dict]) -> str:
     return "\n\n".join(
         f"### Source: {match['source']}\n{match['text']}"
         for match in matches
     )
 
-
 def answer_question(
     question: str,
     matches: list[dict],
 ) -> RAGAnswer:
+    if not matches:
+        return RAGAnswer(
+            answer=NO_ANSWER_MESSAGE,
+            sources=[],
+            grounded=False,
+        )
+
     context = build_context(matches)
 
     prompt = f"""
