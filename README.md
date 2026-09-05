@@ -141,17 +141,3 @@ python -m app.evaluation
 ~~~
 
 The evaluation covers supported policy questions, an unsupported parental-leave question, and a prompt-injection attempt. It checks the `grounded` flag and expected sources; it is not a measure of production answer quality.
-
-## Interview summary
-
-The problem is that support agents lose time searching scattered policies and may give customers inconsistent answers.
-
-This project centralizes approved Markdown knowledge, retrieves a small relevant context, and asks the LLM for structured output. It separates deterministic operational behavior from probabilistic AI behavior: no context means a safe fallback; invalid sources are rejected; a provider outage returns a clear `502` instead of pretending an answer exists.
-
-## Limitations and next steps
-
-- Qdrant local mode is appropriate for a single local instance, not multiple API replicas.
-- Re-indexing is a manual, synchronous operation; a production system should use background jobs, document versioning, and a safe index-swap strategy.
-- Grounding reduces hallucinations but does not replace human review for high-impact decisions.
-- Production deployment needs identity-based access control, audit trails, rate limits, and a managed vector database.
-- Evaluate on anonymized, human-reviewed support conversations before using it to automate customer-facing replies.

@@ -21,15 +21,12 @@ from app.vector_store import (
     semantic_search,
 )
 
-
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
     close_client()
-
 
 app = FastAPI(
     title="Support Knowledge Copilot",
@@ -84,7 +81,6 @@ async def log_request(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
-
 def verify_internal_api_key(
     x_internal_api_key: str | None = Header(default=None),
 ) -> None:
@@ -105,7 +101,6 @@ class SearchRequest(BaseModel):
         description="User question",
     )
 
-
     @field_validator("query")
     @classmethod
     def normalize_query(cls, value: str) -> str:
@@ -114,31 +109,25 @@ class SearchRequest(BaseModel):
             raise ValueError("Query must contain at least 3 non-space characters.")
         return normalized
 
-
 class SearchMatch(BaseModel):
     source: str
     text: str
     score: float
 
-
 class SearchResponse(BaseModel):
     query: str
     matches: list[SearchMatch]
 
-
 class IndexResponse(BaseModel):
     indexed_chunks: int
-
 
 class IndexStatus(BaseModel):
     ready: bool
     indexed_chunks: int
 
-
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
 
 @app.get("/ready", response_model=IndexStatus)
 def ready() -> IndexStatus:
@@ -163,7 +152,6 @@ def ready() -> IndexStatus:
 
     return IndexStatus(**index_status)
 
-
 @app.get(
     "/chunks",
     response_model=list[Chunk],
@@ -172,7 +160,6 @@ def ready() -> IndexStatus:
 def get_chunks() -> list[Chunk]:
     return load_chunks()
 
-
 @app.post(
     "/index",
     response_model=IndexResponse,
@@ -180,7 +167,6 @@ def get_chunks() -> list[Chunk]:
 )
 def index() -> IndexResponse:
     return IndexResponse(indexed_chunks=index_documents())
-
 
 @app.post(
     "/search",
@@ -197,7 +183,6 @@ def search(request: SearchRequest) -> SearchResponse:
         ) from error
 
     return SearchResponse(query=request.query, matches=matches)
-
 
 @app.post(
     "/ask",

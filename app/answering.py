@@ -13,10 +13,8 @@ NO_ANSWER_MESSAGE = (
     "I don't have enough information in the indexed knowledge base to answer that."
 )
 
-
 class ProviderConfigurationError(RuntimeError):
     """Raised when the answer provider has not been configured."""
-
 
 class RAGAnswer(BaseModel):
     answer: str = Field(

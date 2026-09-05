@@ -3,7 +3,6 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -26,7 +25,6 @@ class JsonFormatter(logging.Formatter):
                 payload[field] = value
 
         return json.dumps(payload, ensure_ascii=False)
-
 
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)

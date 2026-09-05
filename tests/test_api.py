@@ -7,11 +7,9 @@ from pydantic_ai.exceptions import ModelHTTPError
 
 client = TestClient(app)
 
-
 @pytest.fixture(autouse=True)
 def disable_optional_internal_key(monkeypatch):
     monkeypatch.delenv("API_SHARED_SECRET", raising=False)
-
 
 def test_health_endpoint() -> None:
     response = client.get("/health")
@@ -23,7 +21,6 @@ def test_search_rejects_short_query() -> None:
     response = client.post("/search", json={"query": "hi"})
 
     assert response.status_code == 422
-
 
 def test_search_rejects_blank_query() -> None:
     response = client.post("/search", json={"query": "   "})
@@ -85,7 +82,6 @@ def test_ready_returns_200_with_index(monkeypatch):
         "indexed_chunks": 4,
     }
 
-
 def test_ask_returns_safe_fallback_without_context(monkeypatch) -> None:
     monkeypatch.setattr(main, "semantic_search", lambda query: [])
 
@@ -100,7 +96,6 @@ def test_ask_returns_safe_fallback_without_context(monkeypatch) -> None:
         "sources": [],
         "grounded": False,
     }
-
 
 def test_ask_returns_503_when_llm_provider_is_not_configured(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -127,7 +122,6 @@ def test_ask_returns_503_when_llm_provider_is_not_configured(monkeypatch) -> Non
 
     assert response.status_code == 503
     assert response.json()["detail"] == "LLM provider is not configured."
-
 
 def test_ask_returns_502_when_llm_provider_fails(monkeypatch):
     monkeypatch.setattr(

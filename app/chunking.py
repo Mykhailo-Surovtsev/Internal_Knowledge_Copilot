@@ -1,17 +1,13 @@
 from pathlib import Path
-
 from pydantic import BaseModel
-
 
 class Chunk(BaseModel):
     id: str
     source: str
     text: str
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIRECTORY = PROJECT_ROOT / "data"
-
 
 def split_text(text: str, chunk_size: int = 220, overlap: int = 40) -> list[str]:
     if overlap >= chunk_size:
@@ -54,7 +50,6 @@ def split_text(text: str, chunk_size: int = 220, overlap: int = 40) -> list[str]
         chunks.append(" ".join(current_words))
 
     return chunks
-
 
 def load_chunks() -> list[Chunk]:
     result = []
